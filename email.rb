@@ -1,3 +1,5 @@
+require 'tempfile'
+
 module Msf
    class Plugin::Email < Msf::Plugin
       attr_accessor :email_address, :tmp_file, :include_creds, :send_startup
