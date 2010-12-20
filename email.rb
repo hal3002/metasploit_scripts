@@ -26,12 +26,13 @@ module Msf
          begin
             tmp_file = Tempfile.open('msf_email')
             tmp_file.write(msg)
+            tmp_file.close
+
             Kernel.system("cat #{tmp_file.path} | mail -s '#{subject}' #{self.email_address}")
 
          rescue Exception => e
             print_error("Sending email notification: #{e.to_s}")
          ensure
-            tmp_file.close
             tmp_file.delete
          end
       end
