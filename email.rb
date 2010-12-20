@@ -26,7 +26,7 @@ module Msf
          begin
             tmp_file = Tempfile.open('msf_email')
             tmp_file.write(msg)
-            Kernel.system("cat #{self.tmp_file.path} | mail -s '#{subject}' #{self.email_address}")
+            Kernel.system("cat #{tmp_file.path} | mail -s '#{subject}' #{self.email_address}")
 
          rescue Exception => e
             print_error("Sending email notification: #{e.to_s}")
@@ -59,7 +59,6 @@ module Msf
          super
 
          self.email_address = "user@domain"
-         self.tmp_file = Tempfile.new
          self.include_creds = false
          self.send_startup = true
          self.framework.events.add_session_subscriber(self)
