@@ -28,7 +28,7 @@ module Msf
             tmp_file.write(msg)
             tmp_file.close
 
-            Kernel.system("cat #{tmp_file.path} | mail -s '#{subject}' #{self.email_address}")
+            Kernel.system("mail -s '#{subject}' #{self.email_address} < #{tmp_file.path}")
 
          rescue Exception => e
             print_error("Sending email notification: #{e.to_s}")
