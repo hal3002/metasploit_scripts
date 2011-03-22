@@ -1,14 +1,14 @@
 Index: lib/msf/core/db.rb
 ===================================================================
---- lib/msf/core/db.rb	(revision 11383)
+--- lib/msf/core/db.rb	(revision 12072)
 +++ lib/msf/core/db.rb	(working copy)
-@@ -512,6 +512,52 @@
+@@ -514,6 +514,52 @@
  	end
  
  	#
 +	# Find a specific credential by id
 +	#
-+	def find_cred_by_id(wspace, id)
++	def find_cred_by_id(wspace=workspace, id)
 +		Cred.find_by_id(id,
 +			:include => {:service => :host},
 +			:conditions => ["hosts.workspace_id = ?", wspace.id]
@@ -18,7 +18,7 @@ Index: lib/msf/core/db.rb
 +	#
 +	# Find credentials for a specific user
 +	#
-+	def find_unique_creds_by_user(wspace, user)
++	def find_unique_creds_by_user(wspace=workspace, user)
 +		Cred.find(
 +			:all,
 +			:include => {:service => :host},
@@ -57,9 +57,9 @@ Index: lib/msf/core/db.rb
  	def exploited_hosts(wspace=workspace)
 Index: lib/msf/ui/console/command_dispatcher/db.rb
 ===================================================================
---- lib/msf/ui/console/command_dispatcher/db.rb	(revision 11383)
+--- lib/msf/ui/console/command_dispatcher/db.rb	(revision 12072)
 +++ lib/msf/ui/console/command_dispatcher/db.rb	(working copy)
-@@ -74,6 +74,7 @@
+@@ -75,6 +75,7 @@
  				"db_import_qualys_xml"  => "Import a Qualys scan results file (XML)",
  				"db_import_msfe_xml"    => "Import a Metasploit Express report (XML)",
  				"db_nmap"               => "Executes nmap and records the output automatically",
@@ -67,7 +67,7 @@ Index: lib/msf/ui/console/command_dispatcher/db.rb
  			}
  
  			base.merge(more)
-@@ -2027,9 +2028,107 @@
+@@ -2093,9 +2094,107 @@
  			res
  		end
  
@@ -139,7 +139,7 @@ Index: lib/msf/ui/console/command_dispatcher/db.rb
 +			build_creds(psexec.datastore['CRED_LIST']).each do |cred|
 +
 +				Msf::DBManager::Service.find_all_by_port_and_proto_and_state(445, 'tcp', 'open').each do |service|
-+					print_status "Trying #{service.host.address} with #{cred[:user]}:#{cred[:pass]}"
++					print_status "Trying #{service.host.address} with #{cred[:user]}:#{cred[:pass]} (#{psexec.datastore['PAYLOAD']})"
 +
 +					mod = framework.modules.create(psexec.fullname)
 +					psexec.datastore.keys.map {|k| mod.datastore[k] = psexec.datastore[k].to_s.dup }
