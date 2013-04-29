@@ -1,0 +1,23 @@
+command reset {
+	$console = console();
+
+	println("Killing all meterpreter sessions");
+	cmd($console, "jobs -K");
+	cmd($console, "sessions -K");
+	
+	println("Reseting the database");
+	cmd($console, "creds -d");
+	cmd($console, "services -d");
+	cmd($console, "hosts -d");
+
+}
+
+command attack {
+	if($1 is $null) {
+		println("Usage: attack <ip|cidr>");
+	}
+	else {
+		println("Launching automated attack against $1");
+		cmd(console(), "db_nmap -sT -p 445 -T5 $1");
+	}
+}

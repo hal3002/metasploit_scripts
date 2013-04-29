@@ -1,0 +1,17 @@
+on service_add_445 {
+	println("Bruteforcing new SMB service on $1");
+	auxiliary("scanner/smb/smb_login", @($1), %());
+}
+
+on service_add_1433 {
+	println("Bruteforcing new MS-SQL service on $1");
+	auxiliary("scanner/mssql/mssql_login", @($1), %());
+}
+
+on service_add_22 {
+	println("Bruteforcing new SSH service on $1");
+	auxiliary("scanner/ssh/ssh_login", @($1), %(
+		USERNAME =>	"root",
+		PASSWORD => 	"password"
+	));
+}

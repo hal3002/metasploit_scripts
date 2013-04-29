@@ -1,0 +1,24 @@
+on service_add_445 {
+	println("Scanning new SMB service on $1");
+	auxiliary("scanner/smb/smb_version", @($1), %());
+	auxiliary("scanner/smb/smb_enumusers", @($1), %());
+	auxiliary("scanner/smb/smb_enumshares", @($1), %());
+	auxiliary("scanner/smb/smb_login", @($1), %());
+}
+
+on service_add_137 {
+	println("Scanning new NetBIOS service on $1");
+	auxiliary("scanner/netbios/nbname", @($1), %());
+	auxiliary("scanner/netbios/nbname_probe", @($1), %());
+}
+
+on service_add_111 {
+	println("Scanning new SunRPC service on $1");
+	auxiliary("scanner/misc/sunrpc_portmapper", @($1), %());
+}
+
+on service_add_1433 {
+	println("Scanning new MS-SQL service on $1");
+	auxiliary("scanner/mssql/mssql_ping", @($1), %());
+	auxiliary("scanner/mssql/mssql_login", @($1), %());
+}
