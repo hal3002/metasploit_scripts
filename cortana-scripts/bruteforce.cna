@@ -32,7 +32,6 @@ on service_add_22 {
 
 on heartbeat_1m {
    println("Bruteforcing SSH on all known hosts");
-   println(join(",", service_open(22)));
 
    auxiliary("scanner/ssh/ssh_login", service_open(22), %(
       USER_FILE =>   "/root/ccdc_users.txt",
